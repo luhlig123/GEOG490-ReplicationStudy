@@ -11,6 +11,10 @@ library(tidycensus)
 library(tidyverse)
 library(ggplot2)
 
+
+v20 <- load_variables(2020, "acs5")
+view(v20)
+
 #Loading in Seattle population data by tract
 Seattle_pop <- get_acs(
   geography = "tract",
@@ -21,21 +25,26 @@ Seattle_pop <- get_acs(
   geometry = TRUE,
 )
 
-view(Seattle_pop)
+#Calculate tract area
+Seattle_pop <- Seattle_pop %>%
+  mutate(area_calculated = sf::st_area(geometry)) %>%
+  mutate(area_calculated = area_calculated/1000) %>%
+  mutate(density = area_calculated / estimate)
 
 #test add
-df <- Seattle_pop %>%
+Seattle_pop <- Seattle_pop %>%
   mutate(density_class = case_when(
-    estimate >= 1900 ~ "Urban High",
-    estimate >= 800 ~ "Urban Low",
-    estimate >= 550 ~ "Suburban High",
-    estimate >= 250 ~ "Suburban low",
-    estimate >= 0 ~ "Exurban"
+    density >= 1900 ~ "Urban High",
+    density >= 800 ~ "Urban Low",
+    density >= 550 ~ "Suburban High",
+    density >= 250 ~ "Suburban low",
+    density >= 0 ~ "Exurban"
   ))
-view(df)
+
+view(Seattle_pop)
 
 #initial visualization
-ggplot(data = df, aes(fill = density_class)) +
+ggplot(data = Seattle_pop, aes(fill = density_class)) +
   geom_sf(color = NA) +
   theme_void()
 
