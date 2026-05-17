@@ -10,43 +10,136 @@
 library(tidycensus)
 library(tidyverse)
 library(ggplot2)
+library(sf)
 
-
-v20 <- load_variables(2020, "acs5")
-view(v20)
 
 #Loading in Seattle population data by tract
 Seattle_pop <- get_acs(
   geography = "tract",
   state = "WA",
   county = c("King", "Snohomish", "Pierce"),
-  variables = "B01001A_001",
+  variables = "B01003_001",
   year = 2020,
+  survey = 'acs5',
   geometry = TRUE,
 )
 
 #Calculate tract area
 Seattle_pop <- Seattle_pop %>%
-  mutate(area_calculated = sf::st_area(geometry)) %>%
-  mutate(area_calculated = area_calculated/1000) %>%
-  mutate(density = area_calculated / estimate)
+  mutate(area_calculated = st_area(geometry)) %>%
+  mutate(area_calculated = as.numeric(area_calculated)) %>%
+  mutate(area_calculated = area_calculated/1000000) %>%
+  mutate(density = estimate / area_calculated)
+
 
 #test add
 Seattle_pop <- Seattle_pop %>%
   mutate(density_class = case_when(
-    density >= 1900 ~ "Urban High",
+    density > 1900 ~ "Urban High",
     density >= 800 ~ "Urban Low",
     density >= 550 ~ "Suburban High",
-    density >= 250 ~ "Suburban low",
-    density >= 0 ~ "Exurban"
+    density >= 250 ~ "Suburban Low",
+    density > 0 ~ "Exurban"
   ))
 
-view(Seattle_pop)
 
-#initial visualization
+#initial visualization of Seattle population density groups by tract
 ggplot(data = Seattle_pop, aes(fill = density_class)) +
   geom_sf(color = NA) +
-  theme_void()
+  theme_void() +
+  labs(title = "Seattle Metro Area Population Density Groups by Tract")
 
+
+#-------------------------------------------------------------------------------
+#POPULATION PYRAMID
+
+#Population by age
+Seattle_pop_by_age <- get_acs(
+  geography = "tract",
+  variables = c(
+    age0_5m_ = "B01001_003",
+    age5_9m_ = "B01001_004",
+    age10_14m_ = "B01001_005",
+    age15_19m = c("B01001_006", "B01001_007"),
+    age20_24m = c("B01001_008", "B01001_009", "B01001_010"),
+    age25_29m_ = "B01001_011",
+    age30_34m_ = "B01001_012",
+    age35_39m_ = "B01001_013",
+    age40_44m_ = "B01001_014",
+    age45_49m_ = "B01001_015",
+    age50_54m_ = "B01001_016",
+    age55_59m_ = "B01001_017",
+    age60_64m = c("B01001_018", "B01001_019"),
+    age65_69m = c("B01001_020", "B01001_021"),
+    age70_74m_ = "B01001_022",
+    age75_79m_ = "B01001_023",
+    age80_84m_ = "B01001_024",
+    age85_and_olderm_ = "B01001_025",
+    age0_5f_ = "B01001_027",
+    age5_9f_ = "B01001_028",
+    age10_14f_ = "B01001_029",
+    age15_19f = c("B01001_030", "B01001_031"),
+    age20_24f = c("B01001_032", "B01001_033", "B01001_034"),
+    age25_29f_ = "B01001_035",
+    age30_34f_ = "B01001_036",
+    age35_39f_ = "B01001_037",
+    age40_44f_ = "B01001_038",
+    age45_49f_ = "B01001_039",
+    age50_54f_ = "B01001_040",
+    age55_59f_ = "B01001_041",
+    age60_64f = c("B01001_042", "B01001_043"),
+    age65_69f = c("B01001_044", "B01001_045"),
+    age70_74f_ = "B01001_046",
+    age75_79f_ = "B01001_047",
+    age80_84f_ = "B01001_048",
+    age85_and_olderf_ = "B01001_049"
+  ),
+  state = "WA",
+  county = c("King", "Snohomish", "Pierce"),
+  survey = "acs5",
+  year = 2020,
+)
+
+
+#Joining age/sex data with population density information
+full_seattle_pop <- full_join(Seattle_pop, Seattle_pop_by_age, by = "GEOID")
+
+#subset by urban and suburban, then group by age brackets
+#urban
+Seattle_urban <- full_seattle_pop %>%
+  filter(density_class == c("Urban High", "Urban Low")) %>%
+  rename(age_group = variable.y) %>%
+  rename(age_count = estimate.y) %>%
+  group_by(age_group) %>%
+  summarise(total_age_count = sum(age_count)) %>%
+  mutate(sex = ifelse(str_detect(age_group, "m"), "M", "F"))
+
+Seattle_urban_filtered <- Seattle_urban %>%
+  mutate(total_age_count = ifelse(sex == "M", -total_age_count, total_age_count))
+
+Seattle_urban_filtered$age_group <- sub("..$", "",
+                                           Seattle_urban_filtered$age_group)
+
+ggplot(Seattle_urban_filtered, aes(x = total_age_count, y = age_group, fill = sex)) +
+  geom_col()
+
+
+#suburban
+Seattle_suburban <- full_seattle_pop %>%
+  filter(density_class == c("Suburban High", "Suburban Low")) %>%
+  rename(age_group = variable.y) %>%
+  rename(age_count = estimate.y) %>%
+  group_by(age_group) %>%
+  summarise(total_age_count = sum(age_count)) %>%
+  mutate(sex = ifelse(str_detect(age_group, "m"), "M", "F"))
+
+Seattle_suburban_filtered <- Seattle_suburban %>%
+  mutate(total_age_count = ifelse(sex == "M", -total_age_count, total_age_count))
+
+Seattle_suburban_filtered$age_group <- sub("..$", "",
+                                           Seattle_suburban_filtered$age_group)
+
+ggplot(Seattle_suburban_filtered, aes(x = total_age_count, y = age_group, fill = sex)) +
+  geom_col()
 
 
