@@ -43,12 +43,55 @@ Seattle_pop <- Seattle_pop %>%
   ))
 
 
-#initial visualization of Seattle population density groups by tract
+#Visualization of Seattle population density groups by tract
 ggplot(data = Seattle_pop, aes(fill = density_class)) +
   geom_sf(color = NA) +
   theme_void() +
   labs(title = "Seattle Metro Area Population Density Groups by Tract")
 
+
+#-------------------------------------------------------------------------------
+#MAP OF POPULATION BELOW POVERTY LINE
+
+#Poverty data
+Seattle_metro_poverty <- get_acs(
+  geography = "tract",
+  state = "WA",
+  county = c("King", "Snohomish", "Pierce"),
+  variables = c(pop = "B17001_001", pop_pov = "B17001_001"),
+  year = 2020,
+  survey = "acs5",
+  geometry = TRUE,
+  output = "wide"
+) %>%
+  rename(pop = popE) %>%
+  rename(pop_pov = popM) %>%
+  mutate(percent_pov = (pop_pov/pop) * 100) #%>%
+  #filter(percent_pov <= 60)
+
+#Plot poverty data
+ggplot(data = Seattle_metro_poverty, aes(fill = pop_pov)) +
+  geom_sf(color = NA)
+
+ggplot(data = Seattle_metro_poverty, aes(fill = percent_pov)) +
+  geom_sf(color = NA) +
+  theme_void()
+
+#-------------------------------------------------------------------------------
+#GRAPH OF MEDIAN HOUSEHOLD INCOME
+
+Seattle_metro_income <- get_acs(
+  geography = "tract",
+  state = "WA",
+  county = c("King", "Snohomish", "Pierce"),
+  variables = "B19013_001",
+  year = 2020,
+  survey = 'acs5',
+  geometry = TRUE,
+)
+
+ggplot(data = Seattle_metro_income, aes(x = estimate)) +
+  geom_histogram()
 
 #-------------------------------------------------------------------------------
 #POPULATION PYRAMID
@@ -121,7 +164,10 @@ Seattle_urban_filtered$age_group <- sub("..$", "",
                                            Seattle_urban_filtered$age_group)
 
 ggplot(Seattle_urban_filtered, aes(x = total_age_count, y = age_group, fill = sex)) +
-  geom_col()
+  geom_col() +
+  labs(
+    title = "Seattle Population by Age in Urban Areas"
+  )
 
 
 #suburban
@@ -140,6 +186,9 @@ Seattle_suburban_filtered$age_group <- sub("..$", "",
                                            Seattle_suburban_filtered$age_group)
 
 ggplot(Seattle_suburban_filtered, aes(x = total_age_count, y = age_group, fill = sex)) +
-  geom_col()
+  geom_col() +
+  labs(
+    title = "Seattle Population by Age in Suburban Areas"
+  )
 
 
