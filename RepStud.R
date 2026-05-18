@@ -46,7 +46,6 @@ Seattle_pop <- Seattle_pop %>%
 #Visualization of Seattle population density groups by tract
 pop_density <- ggplot(data = Seattle_pop, aes(fill = density_class)) +
   geom_sf(color = NA) +
-  theme_void() +
   scale_fill_viridis_d() +
   labs(title = "Seattle Metro Area Population Density Groups by Tract")
 ggsave("Seattle_pop_density.png", pop_density)
@@ -73,7 +72,6 @@ Seattle_metro_poverty <- get_acs(
 #Plot poverty data
 Seattle_poverty <- ggplot(data = Seattle_metro_poverty, aes(fill = pop_pov)) +
   geom_sf(color = NA) +
-  theme_void() +
   scale_fill_viridis_c() +
   labs(
     title = "Seattle Metro Area Population Under the Poverty Line"
