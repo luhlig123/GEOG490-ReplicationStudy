@@ -5,7 +5,7 @@
 
 #This project will replicate the methods used by Brice B. Hanberry to create a
 #standardized definition of urban populations. For this study, the focus will be
-#on Seattle, Washington.
+#on the Seattle metropolitan area.
 #-------------------------------------------------------------------------------
 library(tidycensus)
 library(tidyverse)
@@ -32,7 +32,7 @@ Seattle_pop <- Seattle_pop %>%
   mutate(density = estimate / area_calculated)
 
 
-#test add
+#Creating density class variable
 Seattle_pop <- Seattle_pop %>%
   mutate(density_class = case_when(
     density > 1900 ~ "Urban High",
@@ -44,10 +44,12 @@ Seattle_pop <- Seattle_pop %>%
 
 
 #Visualization of Seattle population density groups by tract
-ggplot(data = Seattle_pop, aes(fill = density_class)) +
+pop_density <- ggplot(data = Seattle_pop, aes(fill = density_class)) +
   geom_sf(color = NA) +
   theme_void() +
+  scale_fill_viridis_d() +
   labs(title = "Seattle Metro Area Population Density Groups by Tract")
+ggsave("Seattle_pop_density.png", pop_density)
 
 
 #-------------------------------------------------------------------------------
@@ -66,20 +68,28 @@ Seattle_metro_poverty <- get_acs(
 ) %>%
   rename(pop = popE) %>%
   rename(pop_pov = popM) %>%
-  mutate(percent_pov = (pop_pov/pop) * 100) #%>%
-  #filter(percent_pov <= 60)
+  mutate(percent_pov = (pop_pov/pop) * 100)
 
 #Plot poverty data
-ggplot(data = Seattle_metro_poverty, aes(fill = pop_pov)) +
-  geom_sf(color = NA)
-
-ggplot(data = Seattle_metro_poverty, aes(fill = percent_pov)) +
+Seattle_poverty <- ggplot(data = Seattle_metro_poverty, aes(fill = pop_pov)) +
   geom_sf(color = NA) +
-  theme_void()
+  theme_void() +
+  scale_fill_viridis_c() +
+  labs(
+    title = "Seattle Metro Area Population Under the Poverty Line"
+  )
+ggsave("Seattle_poverty.png", Seattle_poverty)
+
+
+#Poverty By Percent
+#ggplot(data = Seattle_metro_poverty, aes(fill = percent_pov)) +
+#  geom_sf(color = NA) +
+#  theme_void()
 
 #-------------------------------------------------------------------------------
 #GRAPH OF MEDIAN HOUSEHOLD INCOME
 
+#Seattle metro median income data
 Seattle_metro_income <- get_acs(
   geography = "tract",
   state = "WA",
@@ -88,10 +98,16 @@ Seattle_metro_income <- get_acs(
   year = 2020,
   survey = 'acs5',
   geometry = TRUE,
-)
+) %>%
+  rename(Median_income = estimate)
 
-ggplot(data = Seattle_metro_income, aes(x = estimate)) +
-  geom_histogram()
+#Median income histogram
+Seattle_median_income <- ggplot(data = Seattle_metro_income, aes(x = Median_income)) +
+  geom_histogram(fill = "lightblue", color = "blue") +
+  labs(
+    title = "Seattle Metro Area Median Income Distribution by Tract"
+  )
+ggsave("Seattle_median_income.png", Seattle_median_income)
 
 #-------------------------------------------------------------------------------
 #POPULATION PYRAMID
@@ -148,6 +164,7 @@ Seattle_pop_by_age <- get_acs(
 full_seattle_pop <- full_join(Seattle_pop, Seattle_pop_by_age, by = "GEOID")
 
 #subset by urban and suburban, then group by age brackets
+
 #urban
 Seattle_urban <- full_seattle_pop %>%
   filter(density_class == c("Urban High", "Urban Low")) %>%
@@ -163,12 +180,14 @@ Seattle_urban_filtered <- Seattle_urban %>%
 Seattle_urban_filtered$age_group <- sub("..$", "",
                                            Seattle_urban_filtered$age_group)
 
-ggplot(Seattle_urban_filtered, aes(x = total_age_count, y = age_group, fill = sex)) +
+Seattle_urban_pyramid <- ggplot(
+  Seattle_urban_filtered,
+  aes(x = total_age_count, y = age_group, fill = sex)) +
   geom_col() +
   labs(
     title = "Seattle Population by Age in Urban Areas"
   )
-
+ggsave("Seattle_urban_pyramid.png", Seattle_urban_pyramid)
 
 #suburban
 Seattle_suburban <- full_seattle_pop %>%
@@ -185,10 +204,12 @@ Seattle_suburban_filtered <- Seattle_suburban %>%
 Seattle_suburban_filtered$age_group <- sub("..$", "",
                                            Seattle_suburban_filtered$age_group)
 
-ggplot(Seattle_suburban_filtered, aes(x = total_age_count, y = age_group, fill = sex)) +
+Seattle_suburban_pyramid <- ggplot(
+  Seattle_suburban_filtered,
+  aes(x = total_age_count, y = age_group, fill = sex)) +
   geom_col() +
   labs(
     title = "Seattle Population by Age in Suburban Areas"
   )
-
+ggsave("Seattle_suburban_pyramid.png", Seattle_suburban_pyramid)
 
